@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Persistent Market Timing Widget</title>
+    <style>
+        :root {
+            --card-bg: rgba(10, 12, 15, 0.92);
+            --border-color: rgba(212, 175, 55, 0.35);
+            --gold-accent: #d4af37;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+            --status-open: #2ea44f;
+            --status-closed: #da3633;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background: transparent !important;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 5px;
+            /* Aktifkan fitur menggeser posisi jendela dengan mouse */
+            -webkit-app-region: drag;
+        }
+
+        #market-widget-embedded {
+            width: 480px;
+            height: 175px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(212, 175, 55, 0.15);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .card {
+            background: rgba(18, 22, 28, 0.6);
+            border: 1.5px solid var(--border-color);
+            border-radius: 50%;
+            width: 140px;
+            height: 140px;
+            padding: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .card.active-market {
+            border-color: rgba(212, 175, 55, 0.85);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+        }
+
+        .card-bg-art {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.4;
+            z-index: 0;
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zone-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--gold-accent);
+            margin-top: 2px;
+        }
+
+        .status-badge {
+            font-size: 0.45rem;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .status-open {
+            background-color: rgba(46, 164, 79, 0.25);
+            color: #3fb950;
+            border: 1px solid var(--status-open);
+        }
+
+        .status-closed {
+            background-color: rgba(218, 54, 51, 0.25);
+            color: #f85149;
+            border: 1px solid var(--status-closed);
+        }
+
+        .time-display {
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 2px 0;
+            color: #ffffff;
+            text-shadow: 0 1px 5px rgba(0,0,0,0.8);
+        }
+
+        .date-display {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+        }
+
+        .market-info {
+            width: 82%;
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            padding-top: 3px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .market-info-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.5rem;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #b8860b, var(--gold-accent));
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="market-widget-embedded">
+        <div class="container">
+            <!-- TOKYO -->
+            <div class="card" id="card-tokyo">
+                <svg class="card-bg-art" id="chart-tokyo" viewBox="0 0 200 200" preserveAspectRatio="none"></svg>
+                <div class="card-content">
+                    <div class="zone-title">TOKYO (TSE)</div>
+                    <div id="status-tokyo" class="status-badge status-closed">Closed</div>
+                    <div id="time-tokyo" class="time-display">00:00:00</div>
+                    <div id="date-tokyo" class="date-display">-</div>
+                    <div class="market-info">
+                        <div class="market-info-row"><span>Hours:</span><span>09-15 JST</span></div>
+                        <div class="market-info-row"><span>Sess:</span><span id="session-tokyo">-</span></div>
+                        <div class="progress-bar-bg"><div id="progress-tokyo" class="progress-bar-fill"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LONDON -->
+            <div class="card" id="card-london">
+                <svg class="card-bg-art" id="chart-london" viewBox="0 0 200 200" preserveAspectRatio="none"></svg>
+                <div class="card-content">
+                    <div class="zone-title">LONDON (LSE)</div>
+                    <div id="status-london" class="status-badge status-closed">Closed</div>
+                    <div id="time-london" class="time-display">00:00:00</div>
+                    <div id="date-london" class="date-display">-</div>
+                    <div class="market-info">
+                        <div class="market-info-row"><span>Hours:</span><span>08-16.5 GMT</span></div>
+                        <div class="market-info-row"><span>Sess:</span><span id="session-london">-</span></div>
+                        <div class="progress-bar-bg"><div id="progress-london" class="progress-bar-fill"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW YORK -->
+            <div class="card" id="card-newyork">
+                <svg class="card-bg-art" id="chart-newyork" viewBox="0 0 200 200" preserveAspectRatio="none"></svg>
+                <div class="card-content">
+                    <div class="zone-title">NEW YORK (NYSE)</div>
+                    <div id="status-newyork" class="status-badge status-closed">Closed</div>
+                    <div id="time-newyork" class="time-display">00:00:00</div>
+                    <div id="date-newyork" class="date-display">-</div>
+                    <div class="market-info">
+                        <div class="market-info-row"><span>Hours:</span><span>09.5-16 EST</span></div>
+                        <div class="market-info-row"><span>Sess:</span><span id="session-newyork">-</span></div>
+                        <div class="progress-bar-bg"><div id="progress-newyork" class="progress-bar-fill"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const markets = {
+            tokyo: { timeZone: 'Asia/Tokyo', open: 9, close: 15, elemCard: document.getElementById('card-tokyo'), elemChart: document.getElementById('chart-tokyo'), elemTime: document.getElementById('time-tokyo'), elemDate: document.getElementById('date-tokyo'), elemStatus: document.getElementById('status-tokyo'), elemSession: document.getElementById('session-tokyo'), elemProgress: document.getElementById('progress-tokyo'), candles: [] },
+            london: { timeZone: 'Europe/London', open: 8, close: 16.5, elemCard: document.getElementById('card-london'), elemChart: document.getElementById('chart-london'), elemTime: document.getElementById('time-london'), elemDate: document.getElementById('date-london'), elemStatus: document.getElementById('status-london'), elemSession: document.getElementById('session-london'), elemProgress: document.getElementById('progress-london'), candles: [] },
+            newyork: { timeZone: 'America/New_York', open: 9.5, close: 16, elemCard: document.getElementById('card-newyork'), elemChart: document.getElementById('chart-newyork'), elemTime: document.getElementById('time-newyork'), elemDate: document.getElementById('date-newyork'), elemStatus: document.getElementById('status-newyork'), elemSession: document.getElementById('session-newyork'), elemProgress: document.getElementById('progress-newyork'), candles: [] }
+        };
+
+        // Inisialisasi Candle Data awal
+        function initCandles(market) {
+            market.candles = [];
+            let lastClose = 100 + Math.random() * 20;
+            for (let i = 0; i < 12; i++) {
+                let open = lastClose;
+                let close = open + (Math.random() - 0.48) * 12;
+                let high = Math.max(open, close) + Math.random() * 5;
+                let low = Math.min(open, close) - Math.random() * 5;
+                market.candles.push({ open, close, high, low });
+                lastClose = close;
+            }
+        }
+
+        // Render Grafik SVG Candlestick
+        function renderChart(market) {
+            const svg = market.elemChart;
+            const minVal = Math.min(...market.candles.map(c => c.low));
+            const maxVal = Math.max(...market.candles.map(c => c.high));
+            const range = maxVal - minVal || 1;
+
+            let html = `<circle cx="100" cy="100" r="95" stroke="#d4af37" stroke-width="0.5" fill="none" opacity="0.15"/><circle cx="100" cy="100" r="65" stroke="#d4af37" stroke-width="0.5" stroke-dasharray="3" fill="none" opacity="0.2"/>`;
+
+            market.candles.forEach((c, idx) => {
+                const x = 20 + idx * 14;
+                const isGreen = c.close >= c.open;
+                const color = isGreen ? '#3fb950' : '#f85149';
+
+                const yHigh = 160 - ((c.high - minVal) / range) * 120;
+                const yLow = 160 - ((c.low - minVal) / range) * 120;
+                const yOpen = 160 - ((c.open - minVal) / range) * 120;
+                const yClose = 160 - ((c.close - minVal) / range) * 120;
+
+                const yBody = Math.min(yOpen, yClose);
+                const heightBody = Math.max(Math.abs(yClose - yOpen), 3);
+
+                html += `<line x1="${x+3}" y1="${yHigh}" x2="${x+3}" y2="${yLow}" stroke="${color}" stroke-width="1.2" opacity="0.85"/><rect x="${x}" y="${yBody}" width="6" height="${heightBody}" fill="${color}" opacity="0.85" rx="1"/>`;
+            });
+            svg.innerHTML = html;
+        }
+
+        // PERGERAKAN LIVE REAL-TIME (Selalu bergerak dinamis 100% tanpa henti)
+        function updateLiveCandle(market) {
+            if (market.candles.length === 0) return;
+            
+            let lastCandle = market.candles[market.candles.length - 1];
+            // Tambahkan perubahan harga acak
+            let delta = (Math.random() - 0.48) * 8;
+            lastCandle.close += delta;
+            lastCandle.high = Math.max(lastCandle.high, lastCandle.close);
+            lastCandle.low = Math.min(lastCandle.low, lastCandle.close);
+
+            // Geser batang candle baru (Peluang tinggi 40% per tick)
+            if (Math.random() < 0.4) {
+                market.candles.shift();
+                let open = lastCandle.close;
+                let close = open + (Math.random() - 0.48) * 10;
+                market.candles.push({ 
+                    open, 
+                    close, 
+                    high: Math.max(open, close) + Math.random() * 5, 
+                    low: Math.min(open, close) - Math.random() * 5 
+                });
+            }
+            renderChart(market);
+        }
+
+        function updateClocks() {
+            const now = new Date();
+            Object.keys(markets).forEach(key => {
+                const market = markets[key];
+                const timeStr = new Intl.DateTimeFormat('id-ID', { timeZone: market.timeZone, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(now);
+                const dateStr = new Intl.DateTimeFormat('id-ID', { timeZone: market.timeZone, weekday: 'short', day: 'numeric', month: 'short' }).format(now);
+
+                market.elemTime.innerText = timeStr;
+                market.elemDate.innerText = dateStr;
+
+                const marketDate = new Date(now.toLocaleString('en-US', { timeZone: market.timeZone }));
+                const currentDecimalTime = marketDate.getHours() + (marketDate.getMinutes() / 60);
+                const isWeekend = (marketDate.getDay() === 0 || marketDate.getDay() === 6);
+                const isOpen = !isWeekend && (currentDecimalTime >= market.open && currentDecimalTime < market.close);
+
+                if (isOpen) {
+                    market.elemStatus.innerText = "OPEN";
+                    market.elemStatus.className = "status-badge status-open";
+                    market.elemSession.innerText = "Trade";
+                    market.elemCard.classList.add("active-market");
+                    market.elemProgress.style.width = `${Math.min(Math.max(((currentDecimalTime - market.open) / (market.close - market.open)) * 100, 0), 100)}%`;
+                } else {
+                    market.elemStatus.innerText = "CLOSED";
+                    market.elemStatus.className = "status-badge status-closed";
+                    market.elemSession.innerText = isWeekend ? "Wknd" : "Off";
+                    market.elemCard.classList.remove("active-market");
+                    market.elemProgress.style.width = "0%";
+                }
+            });
+        }
+
+        // Inisialisasi awal
+        Object.keys(markets).forEach(key => { 
+            initCandles(markets[key]); 
+            renderChart(markets[key]); 
+        });
+
+        // Loop Pergerakan Jam (1 detik) & Loop Candle Live Cepat (400 milidetik)
+        setInterval(updateClocks, 1000);
+        setInterval(() => { 
+            Object.keys(markets).forEach(key => updateLiveCandle(markets[key])); 
+        }, 400);
+
+        updateClocks();
+    </script>
+</body>
+</html>
